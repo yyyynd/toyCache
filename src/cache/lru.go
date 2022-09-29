@@ -49,7 +49,10 @@ func (c *LRUCache) Remove(key string) {
 	if c.curEntries == 0 {
 		return
 	}
-	ele := c.reflectForm[key]
+	ele, ok := c.reflectForm[key]
+	if !ok {
+		return
+	}
 	c.store.Remove(ele)
 	delete(c.reflectForm, key)
 	c.curEntries -= 1
