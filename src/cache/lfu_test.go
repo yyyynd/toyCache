@@ -1,9 +1,17 @@
 package cache
 
-import "testing"
+import (
+	"container/list"
+	"testing"
+)
 
 
-var c = NewLFUCache(defaultMaxBytes)
+var c =  &LFUCache{
+		maxEntries:  defaultMaxCacheNum,
+		curEntries:  0,
+		store:       list.New(),
+		reflectForm: make(map[string]*list.Element),
+	}
 
 func TestLFUCache_Add(t *testing.T) {
 	c.Add("key1","a")
@@ -44,6 +52,14 @@ func TestLFUCache_Remove(t *testing.T) {
 	c.Remove("key3")
 	if _, ok := c.Get("key3"); ok{
 		t.Fatalf("Remove error")
+	}
+	t.Logf("cur cache size : %d\n", c.CacheSize())
+}
+
+func TestLFUCache_RemoveOldest(t *testing.T) {
+	c.RemoveOldest()
+	if _, ok := c.Get("key2"); ok{
+		t.Fatalf("Remove oldest error")
 	}
 	t.Logf("cur cache size : %d\n", c.CacheSize())
 }

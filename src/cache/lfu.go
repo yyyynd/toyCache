@@ -15,7 +15,8 @@ type elementLFU struct {
 	value interface{}
 }
 
-func NewLFUCache(maxEntries int64) *LFUCache {
+
+func NewLFUCache(maxEntries int64) Cache {
 	return &LFUCache{
 		maxEntries:  maxEntries,
 		curEntries:  0,
@@ -26,10 +27,10 @@ func NewLFUCache(maxEntries int64) *LFUCache {
 
 func (c *LFUCache) Add(key string, value interface{}){
 	if c.curEntries == c.maxEntries {
-		c.removeOldest()
+		c.RemoveOldest()
 	}
 	ele := c.store.PushBack(&elementLFU{key: key,
-								frequency: 1,
+								frequency: 0,
 								value: value})
 	c.reflectForm[key] = ele
 	c.curEntries += 1
@@ -51,7 +52,7 @@ func (c *LFUCache) Get(key string)(value interface{}, ok bool)  {
 	return ele.Value.(*elementLFU).value, true
 }
 
-func (c *LFUCache) Remove(key string) {
+func (c *LFUCache) Remove(key string) (removeKey string, removeValue interface{}){
 	if c.curEntries == 0 {
 		return
 	}
@@ -59,9 +60,12 @@ func (c *LFUCache) Remove(key string) {
 	if !ok {
 		return
 	}
+	entry := ele.Value.(*elementLFU)
+
 	c.store.Remove(ele)
 	delete(c.reflectForm, key)
 	c.curEntries -= 1
+	return entry.key, entry.value
 }
 
 func (c *LFUCache) CacheSize() int64 {
@@ -82,13 +86,19 @@ func (c *LFUCache) insertPosition(target int) *list.Element{
 	return c.store.Back()
 }
 
-func (c *LFUCache) removeOldest() {
+func (c *LFUCache) RemoveOldest() (removeKey string, removeValue interface{}){
 	if c.curEntries == 0 {
 		return
 	}
 	ele := c.store.Back()
-	delete(c.reflectForm, ele.Value.(*elementLFU).key)
+	entry := ele.Value.(*elementLFU)
+	delete(c.reflectForm, entry.key)
 	c.store.Remove(ele)
 	c.curEntries -= 1
+	return entry.key, entry.value
+}
+
+func (c *LFUCache) MaxCacheNum() int64 {
+	return c.maxEntries
 }
 

@@ -1,16 +1,22 @@
 package cache
 
 import (
+	"container/list"
 	"testing"
 )
 
 func newLRU() *LRUCache {
-	return  NewLRUCache(defaultMaxBytes)
+	return &LRUCache{
+		maxEntries:  defaultMaxCacheNum,
+		curEntries:  0,
+		store:       list.New(),
+		reflectForm: make(map[string]*list.Element),
+	}
 }
 
 
 func TestLRU(t *testing.T) {
-	//c := NewLRU(defaultMaxBytes).(*LRUCache)
+	//c := NewLRU(defaultMaxCacheNum).(*LRUCache)
 	c := newLRU()
 	c.Add("key1","a")
 	c.Add("key2","b")
@@ -37,7 +43,7 @@ func TestLRU(t *testing.T) {
 	order := []string{"b","a","c"}
 	for e , i := c.store.Front(), 0; e != nil && i < len(order);
 			e ,i = e.Next(), i+1{
-		if order[i] != e.Value.(elementLRU).value.(string){
+		if order[i] != e.Value.(*elementLRU).value.(string){
 			t.Fatalf("Order error")
 		}
 	}
