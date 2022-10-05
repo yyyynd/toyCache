@@ -25,9 +25,9 @@ func NewLFUCache(maxEntries int64) Cache {
 	}
 }
 
-func (c *LFUCache) Add(key string, value interface{}){
+func (c *LFUCache) add(key string, value interface{}){
 	if c.curEntries == c.maxEntries {
-		c.RemoveOldest()
+		c.removeOldest()
 	}
 	ele := c.store.PushBack(&elementLFU{key: key,
 								frequency: 0,
@@ -36,13 +36,13 @@ func (c *LFUCache) Add(key string, value interface{}){
 	c.curEntries += 1
 }
 
-func (c *LFUCache) Get(key string)(value interface{}, ok bool)  {
+func (c *LFUCache) get(key string)(value interface{}, ok bool)  {
 	ele, ok := c.reflectForm[key]
 	if !ok {
 		return nil, false
 	}
 	ele.Value.(*elementLFU).frequency += 1
-	insert := c.insertPosition(ele.Value.(*elementLFU).frequency)
+	insert := c.insertPosition(ele)
 	if insert == nil {
 		c.store.MoveToFront(ele)
 	}else {
@@ -52,7 +52,7 @@ func (c *LFUCache) Get(key string)(value interface{}, ok bool)  {
 	return ele.Value.(*elementLFU).value, true
 }
 
-func (c *LFUCache) Remove(key string) (removeKey string, removeValue interface{}){
+func (c *LFUCache) remove(key string) (removeKey string, removeValue interface{}){
 	if c.curEntries == 0 {
 		return
 	}
@@ -68,25 +68,26 @@ func (c *LFUCache) Remove(key string) (removeKey string, removeValue interface{}
 	return entry.key, entry.value
 }
 
-func (c *LFUCache) CacheSize() int64 {
+func (c *LFUCache) currentEntries() int64 {
 	return c.curEntries
 }
 
 //insertPosition Find insert position
-func (c *LFUCache) insertPosition(target int) *list.Element{
+func (c *LFUCache) insertPosition(targetEle *list.Element) *list.Element{
 	if c.curEntries == 0 {
 		return nil
 	}
-	for ele := c.store.Front(); ele != nil; ele = ele.Next(){
-		if ele.Value.(*elementLFU).frequency <= target{
-			return ele.Prev()
+	targetFre := targetEle.Value.(*elementLFU).frequency
+	for ele := targetEle.Prev(); ele != nil; ele = ele.Prev(){
+		if ele.Value.(*elementLFU).frequency > targetFre{
+			return ele
 		}
 	}
-	//if all ele.frequency > target, return list tail
-	return c.store.Back()
+	//if all ele.frequency <= targetEle.frequency or none other ele
+	return nil
 }
 
-func (c *LFUCache) RemoveOldest() (removeKey string, removeValue interface{}){
+func (c *LFUCache) removeOldest() (removeKey string, removeValue interface{}){
 	if c.curEntries == 0 {
 		return
 	}
@@ -98,7 +99,15 @@ func (c *LFUCache) RemoveOldest() (removeKey string, removeValue interface{}){
 	return entry.key, entry.value
 }
 
-func (c *LFUCache) MaxCacheNum() int64 {
+func (c *LFUCache) maxCacheNum() int64 {
 	return c.maxEntries
+}
+
+func (c *LFUCache) modifyMaxEntries(newMaxNum int64) {
+	diff := c.curEntries - newMaxNum
+	for ; diff > 0; diff-- {
+		c.removeOldest()
+	}
+	c.maxEntries = newMaxNum
 }
 
