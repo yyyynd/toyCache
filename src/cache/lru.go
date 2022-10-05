@@ -26,9 +26,9 @@ func NewLRUCache(maxEntries int64) Cache{
 	}
 }
 
-func (c *LRUCache) Add(key string, value interface{}){
+func (c *LRUCache) add(key string, value interface{}){
 	if c.curEntries == c.maxEntries {
-		c.RemoveOldest()
+		c.removeOldest()
 	}
 	ele := c.store.PushFront(&elementLRU{key : key,
 									value : value})
@@ -36,7 +36,7 @@ func (c *LRUCache) Add(key string, value interface{}){
 	c.curEntries += 1
 }
 
-func (c *LRUCache) Get(key string)(value interface{}, ok bool)  {
+func (c *LRUCache) get(key string)(value interface{}, ok bool)  {
 	if ele, ok := c.reflectForm[key]; !ok {
 		return nil, false
 	}else {
@@ -45,7 +45,7 @@ func (c *LRUCache) Get(key string)(value interface{}, ok bool)  {
 	}
 }
 
-func (c *LRUCache) Remove(key string) (removeKey string, removeValue interface{}){
+func (c *LRUCache) remove(key string) (removeKey string, removeValue interface{}){
 	if c.curEntries == 0 {
 		return
 	}
@@ -61,7 +61,7 @@ func (c *LRUCache) Remove(key string) (removeKey string, removeValue interface{}
 	return entry.key, entry.value
 }
 
-func (c *LRUCache) RemoveOldest() (removeKey string, removeValue interface{}){
+func (c *LRUCache) removeOldest() (removeKey string, removeValue interface{}){
 	//check element number
 	if c.curEntries == 0 {
 		return
@@ -75,10 +75,18 @@ func (c *LRUCache) RemoveOldest() (removeKey string, removeValue interface{}){
 	return entry.key, entry.value
 }
 
-func (c *LRUCache) CacheSize() int64 {
+func (c *LRUCache) currentEntries() int64 {
 	return c.curEntries
 }
 
-func (c *LRUCache) MaxCacheNum() int64 {
+func (c *LRUCache) maxCacheNum() int64 {
 	return c.maxEntries
+}
+
+func (c *LRUCache) modifyMaxEntries(newMaxNum int64) {
+	diff := c.curEntries - newMaxNum
+	for ; diff > 0; diff-- {
+		c.removeOldest()
+	}
+	c.maxEntries = newMaxNum
 }
