@@ -34,7 +34,7 @@ func TestSetCacheMode(t *testing.T) {
 
 func TestModifyMaxEntries(t *testing.T) {
 	ModifyMaxEntries(2)
-	if CurrentCacheNum() != 2 || len(controller.(*LFUCache).reflectForm) != 2 ||
+	if MaxCacheNum() != 2 || CurrentCacheNum() != 2 || len(controller.(*LFUCache).reflectForm) != 2 ||
 		controller.(*LFUCache).store.Len() != 2{
 		t.Fatalf("Modify fail")
 	}

@@ -56,3 +56,10 @@ func TestLRU(t *testing.T) {
 	t.Logf("remove test pass")
 	t.Logf("cur cache size : %d\n", c.currentEntries())
 }
+
+//func TestStorageOrder(t *testing.T) {
+//	keyList := list.New()
+//	for i := 0; i < defaultMaxCacheNum; i++ {
+//
+//	}
+//}
