@@ -11,30 +11,36 @@ import (
 )
 
 type GroupPool struct {
-	self     string //this node address
-	selfId   int    //this node hash key
-	selfName string //this node name
-	basePath string //represent api
-	nodesId  []int
-	groups   map[int]*GroupNode
-	mu sync.Mutex
+	selfId      int    //this node hash key
+	selfAddress string //this node address
+	selfName    string //this node name
+	basePath    string //represent api
+	nodesId     []int
+	groups      map[int]*GroupNode
+	hit         int
+	miss        int
+	load		int
+	LoadFunc    LoadFun
 }
 
+var LoadFunc Loader
+var mu sync.Mutex
 const defaultBasePath = "/groupCache/"
 
-func NewGroupPool(selfAddre string, selfName string, basePath string) *GroupPool {
+func NewGroupPool(selfAddress string, selfName string, basePath string) *GroupPool {
 	newPool := GroupPool{
-		self:     selfAddre,
-		selfName: selfName,
-		selfId:   consistentHash(selfAddre + selfName),
-		basePath: defaultBasePath,
-		groups:   make(map[int]*GroupNode),
-		nodesId:  make([]int, 0),
+		selfAddress: selfAddress,
+		selfName:    selfName,
+		selfId:      consistentHash(selfAddress + selfName),
+		basePath:    defaultBasePath,
+		groups:      make(map[int]*GroupNode),
+		nodesId:     make([]int, 0),
 	}
-	newPool.AddNode(selfName, selfAddre, newPool.selfId)
+	newPool.AddNode(selfName, selfAddress, newPool.selfId)
 	if basePath != "" {
 		newPool.basePath = basePath
 	}
+	LoadFunc = nil
 	return &newPool
 }
 
@@ -63,31 +69,35 @@ func (p *GroupPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	//groupName := parts[0]
 	key := parts[1]
-
 	//w.Write([]byte(fmt.Sprintf("groupName: %s, key: %s", groupName, key)))
 	//temporary
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(p.Get(key).(string)))
+	value := p.Get(key)
+	if value == nil{
+		w.WriteHeader(http.StatusBadRequest)
+	}else {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(value.(string)))
+	}
 }
 
 func (p *GroupPool) Get(key string) (value interface{}){
 	//first check local cache
-	//if value, ok := cache.Get(key); ok {
-	//	//p.groups[p.selfId].HitCount()
-	//	return value
-	//}
-	//p.groups[p.selfId].MissCount()
+	if value, ok := cache.Get(key); ok {
+		p.hit += 1
+		return value
+	}
+	p.miss += 1
 	//second check weather get from peers
 	//if this request need current node handle
 	if peerId,err := p.peerPeek(key); err != nil{
-
+		//log
 	}else if peerId == p.selfId{
-		//try load data from database
-		value, _ := cache.Get(key)
-		p.groups[p.selfId].HitCount()
+		p.load += 1
+		//log
+		//try load data by user specified method
+		value, _ = LoadFunc.Load(key)
 		return value
 	}else {
-		p.groups[p.selfId].MissCount()
 		peer := p.groups[peerId]
 		res, err := http.Get(peer.address + p.basePath + peer.nodeName + "/" +key)
 		if err != nil {
@@ -95,6 +105,7 @@ func (p *GroupPool) Get(key string) (value interface{}){
 		}else {
 			value, err = ioutil.ReadAll(res.Body)
 			if err != nil {
+				//log
 				return nil
 			}else {
 				builder := strings.Builder{}
@@ -110,7 +121,6 @@ func (p *GroupPool) Get(key string) (value interface{}){
 
 func (p *GroupPool) peerPeek(key string) (peerId int, err error){
 	id := consistentHash(key)
-
 	for _, peerId = range p.nodesId {
 		if id <= peerId {
 			 return peerId, nil
